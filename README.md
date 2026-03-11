@@ -1,125 +1,220 @@
-1. PROJECT OVERVIEW
-What it is: DoorKeeper is a security configuration auditing tool. You give it a JSON file that describes a system's setup — its network, ports, authentication method, encryption, logging, and backup policy — and it evaluates that configuration against a ruleset of security best practices.
+# DoorKeeper
 
-Problem it solves: Security misconfigurations are one of the leading causes of breaches. DoorKeeper gives developers and sysadmins a fast, zero-setup way to check whether a system's config follows secure standards before deploying.
+> A browser-based security configuration auditing tool. Paste a JSON config, get a full security report — no backend, no setup, no data leaves your machine.
 
-Target user: Developers, DevOps engineers, and security teams who want to audit infrastructure or application configs without running a full penetration test or third-party scanner.
+---
 
-How it works at a high level: The user submits a JSON config → the engine runs it through a set of rules → findings are returned with severity ratings and specific fix instructions.
+## What It Does
 
-2. TECHNICAL STACK
-Frontend
-Tool	Role
-Alpine.js 3.x	Reactive UI state (no build step required)
-Vanilla JS	All scan logic, validation, storage
-CSS Variables	Full light/dark theming
-Browser LocalStorage	Persisting scan history client-side
-Google Fonts (Inter)	Typography
-Backend
-Tool	Role
-FastAPI	REST API framework (Python)
-Uvicorn	ASGI server running on port 5000
-Pydantic v2	Schema modeling and request validation
-Python standard library	All rule logic, no external ML/AI deps
-Storage
-Frontend: Browser localStorage, key doorkeeper_recent_scans, capped at 10 entries
-Backend: In-memory Python dictionary (no database — intentional for demo)
-AI/ML
-None. The "AI simulation" in the backend (ai_simulation.py) generates hardcoded contextual text based on findings — it is not a real model call.
-3. CORE FUNCTIONALITY
-What "DoorKeeper" means here: It's a configuration gate — a checker that stands at the door of your infrastructure and says whether the configuration is safe to let through. It is not an authentication system, not a rate limiter, not a reverse proxy. It is a static security auditor.
+DoorKeeper evaluates system configuration files against a ruleset of security best practices. You describe your infrastructure in JSON — ports, authentication, encryption, logging, backup policy — and DoorKeeper tells you what's misconfigured, how severe it is, and how to fix it.
 
-What it guards: System configuration files. Specifically the security posture defined by:
+**Problem it solves:** Security misconfigurations are one of the leading causes of breaches. DoorKeeper gives developers and sysadmins a fast, zero-setup way to audit a system's config before deploying.
 
-Network setup (ports, encryption protocol)
-Authentication method and password policy
-Logging and audit trail settings
-Backup and disaster recovery settings
-How it makes decisions: Pure rule-based logic. Each rule is an independent function that reads specific keys from the config dict and compares values against hardcoded thresholds. No scoring model, no ML — deterministic pass/fail per rule.
+**Target users:** Developers, DevOps engineers, and security teams who want to check infrastructure or application configs without running a full penetration test or third-party scanner.
 
-4. ARCHITECTURE & WORKFLOW
-Frontend-only flow (what runs in production)
+---
+
+## Live Demo
+
+1. Open the app
+2. Click **Use Secure Sample** or **Use Vulnerable Sample**
+3. Click **Run Scan**
+4. Review findings, expand each one for a recommended fix
+
+---
+
+## Technical Stack
+
+### Frontend
+
+| Tool | Role |
+|------|------|
+| **Alpine.js 3.x** | Reactive UI state — no build step required |
+| **Vanilla JavaScript** | All scan logic, validation, and storage |
+| **CSS Variables** | Full light/dark theming |
+| **Browser LocalStorage** | Persists scan history client-side |
+| **Google Fonts (Inter)** | Typography |
+
+### Backend *(optional — app runs fully without it)*
+
+| Tool | Role |
+|------|------|
+| **FastAPI** | Python REST API framework |
+| **Uvicorn** | ASGI server on port 5000 |
+| **Pydantic v2** | Request schema modeling and validation |
+
+### Storage
+- **Frontend:** `localStorage` under key `doorkeeper_recent_scans`, capped at 10 entries
+- **Backend:** In-memory Python dict (intentional for demo — no database dependency)
+
+### AI/ML
+None. The `ai_simulation.py` module generates contextual text from hardcoded templates based on findings — it is not a live model call.
+
+---
+
+## Architecture & Data Flow
+
+### Frontend-only flow *(production)*
+
+```
 User Input (JSON)
-      ↓
+      │
+      ▼
 schema.js → ConfigSchema.validate()
-  - Checks required fields, correct types
-  - Returns errors array
-      ↓
+  Checks required fields and correct types
+      │
+      ▼
 mock-scan.js → runMockScan()
-  - Rule 1: ports.includes(80) && !ports.includes(443) → HTTPS not enforced
-  - Rule 2: target.startsWith('http://') → unencrypted protocol
-  - Rule 3: httpSecurityHeaders flag → checks for CSP, HSTS, X-Frame-Options
-  - Rule 4: robotsTxt flag → admin path exposure
-  - Rule 5: ports ∩ [21, 23, 3389, 5900] → insecure services
-  - Determinism: scan ID and timestamp generated from hash of config string
-      ↓
+  Rule 1 │ ports.includes(80) && !ports.includes(443)  → HTTPS not enforced
+  Rule 2 │ target.startsWith('http://')                → Unencrypted protocol
+  Rule 3 │ httpSecurityHeaders flag                    → CSP, HSTS, X-Frame-Options
+  Rule 4 │ robotsTxt flag                              → Admin path exposure
+  Rule 5 │ ports ∩ [21, 23, 3389, 5900]               → Insecure services open
+      │
+      ▼
 storage.js → ScanStorage.save()
-  - Prepends result to localStorage array
-  - Trims to 10 entries
-      ↓
-script.js (Alpine.js) → renders findings to UI
-Backend flow (optional, not used by default)
-POST /api/scan  →  RulesEngine.run_all_checks(config)
-  - rule_1: password policy (min length 12, uppercase, numbers, special chars)
-  - rule_2: encryption (SSL/TLS1.0/1.1 = CRITICAL, TLS1.2/1.3 = pass)
-  - rule_3: open ports (risky list: 21,23,53,135,139,445,1433,3389,5432)
-  - rule_4: auth method (mfa/2fa/oauth/saml = pass, password-only = MEDIUM)
-  - rule_5: logging (enabled, valid level, audit trail, ≥30 day retention)
-  - rule_6: backup (enabled, daily/hourly, encrypted, offsite, ≥30 day retention)
-      ↓
+  Prepends result to localStorage array, trims to 10 entries
+      │
+      ▼
+script.js (Alpine.js) → Renders findings to UI
+```
+
+### Backend flow *(optional)*
+
+```
+POST /api/scan
+      │
+      ▼
+RulesEngine.run_all_checks(config)
+  rule_1 │ Password policy      (min length 12, uppercase, numbers, special chars)
+  rule_2 │ Encryption standard  (SSL/TLS1.0/1.1 = CRITICAL, TLS1.2/1.3 = pass)
+  rule_3 │ Open ports           (risky: 21, 23, 53, 135, 139, 445, 1433, 3389, 5432)
+  rule_4 │ Auth method          (MFA/OAuth/SAML = pass, password-only = MEDIUM)
+  rule_5 │ Logging config       (enabled, valid level, audit trail, ≥30 day retention)
+  rule_6 │ Backup settings      (enabled, daily/hourly, encrypted, offsite, ≥30 days)
+      │
+      ▼
 ComplianceCalculator → severity-weighted score (0–100)
-  Critical = -25pts, High = -20pts, Medium = -10pts, Low = -5pts
-      ↓
-AISimulation → generates contextual text summary (hardcoded templates)
-      ↓
-ExplanationEngine → loads fix guide from /fix_library/rule_N_fix.md
-      ↓
-GET /api/reports/{scan_id} → retrieves from in-memory dict
-Key architectural note
-The frontend and backend have different rule sets. The browser runs 5 network/HTTP-focused rules. The backend runs 6 deeper infrastructure rules (password policy, auth method, backup config, logging). They share the same UI but are separate engines.
+  Critical = −25 pts │ High = −20 pts │ Medium = −10 pts │ Low = −5 pts
+      │
+      ▼
+ExplanationEngine → loads /fix_library/rule_N_fix.md
+      │
+      ▼
+Response: { scan_id, findings, compliance_score, summary }
+```
 
-5. KEY FEATURES
-Configuration options (input schema)
+> **Note:** The frontend and backend implement separate but complementary rule sets. The frontend covers network surface (HTTP/HTTPS, ports, headers). The backend covers system internals (auth, encryption, logging, backup). They share the same UI but are independent engines.
+
+---
+
+## Configuration Schema
+
+```json
 {
-  "target": "https://example.com",       // required
+  "target": "https://example.com",
   "checks": {
-    "ports": [80, 443],                  // optional — array of port numbers
-    "httpSecurityHeaders": true,         // optional — trigger header checks
-    "robotsTxt": true                    // optional — trigger robots.txt check
+    "ports": [80, 443],
+    "httpSecurityHeaders": true,
+    "robotsTxt": true
   },
-  "tags": ["production"],               // optional — labels
-  "note": "any string"                  // optional — free text
+  "tags": ["production", "webapp"],
+  "note": "Optional description"
 }
-API endpoints (backend)
-Method	Endpoint	Description
-GET	/	Serves index.html
-POST	/api/scan	Runs all 6 rules, returns findings + score
-GET	/api/reports	Lists all in-memory scan reports
-GET	/api/reports/{scan_id}	Retrieves one report by ID
-GET	/static/*	Serves frontend assets
-UI components
-Drag-and-drop file upload zone
-Real-time JSON validation with inline error display
-Three built-in test presets (goodHttps, noHttps, robotsExposed)
-Collapsible finding cards with severity pills and fix recommendations
-Filter chips (All / Warning / Info)
-Scan history table (last 10, stored locally)
-Light/Dark theme toggle (persisted to localStorage)
-Toast notifications
-Keyboard shortcuts: Ctrl+Enter = run scan, Ctrl+Shift+F = format JSON
-Processing model
-Frontend scans: Async with a simulated 1.5–2s delay (deterministic based on target URL length)
-Backend scans: Synchronous rule execution, in-memory result storage
-No real-time/streaming — single request → full response
-6. IMPLEMENTATION HIGHLIGHTS
-Deterministic scan engine: The most deliberate design choice. The scan ID and timestamp are derived from a hash of the input config string using a bitwise rolling hash (hash = ((hash << 5) - hash) + charCode). This means identical configs always produce identical scan IDs, timestamps, and findings. This makes the tool reproducible and testable without a database.
+```
 
-No build toolchain: The entire frontend runs from plain .js files loaded via <script> tags. Alpine.js is loaded from CDN. No webpack, no npm, no compilation step — the whole UI is editable and deployable as static files.
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `target` | `string` | Yes | URL or hostname to scan |
+| `checks.ports` | `number[]` | No | Port numbers to evaluate |
+| `checks.httpSecurityHeaders` | `boolean` | No | Run HTTP security header checks |
+| `checks.robotsTxt` | `boolean` | No | Check for robots.txt path exposure |
+| `tags` | `string[]` | No | Labels for organizing scans |
+| `note` | `string` | No | Free-text description |
 
-Dual rule systems: Frontend and backend implement different but complementary security checks. The frontend covers network surface (HTTP/HTTPS, ports, headers). The backend covers system internals (auth, encryption standards, logging, backup). They could be unified but are currently independent.
+---
 
-Severity-weighted compliance scoring (backend): Rather than a simple pass/fail percentage, the backend deducts points by severity from a 100-point baseline. A single CRITICAL finding costs 25 points. This produces a more meaningful risk score than counting issues equally.
+## API Endpoints *(backend)*
 
-Markdown-based fix library: Each backend rule maps to a .md file in /fix_library/. This decouples remediation content from rule logic — you can update fix instructions without touching the rules engine code.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Serves `index.html` |
+| `POST` | `/api/scan` | Runs all 6 rules, returns findings + compliance score |
+| `GET` | `/api/reports` | Lists all in-memory scan reports |
+| `GET` | `/api/reports/{scan_id}` | Retrieves one report by ID |
+| `GET` | `/static/*` | Serves frontend assets |
 
-Relation to security governance: DoorKeeper is a lightweight implementation of the configuration-as-code security review pattern — the same category of tooling as tfsec, checkov, and kube-bench, but simplified for demo and educational use rather than production enforcement.
+---
+
+## File Structure
+
+```
+door_keeper_frontend/
+├── index.html          # UI structure and Alpine.js bindings
+├── styles.css          # Light/dark theming via CSS variables
+├── script.js           # App controller and state management
+├── schema.js           # JSON config schema validator
+├── mock-scan.js        # Deterministic client-side scan engine
+└── storage.js          # LocalStorage wrapper for scan history
+
+door_keeper_backend/
+├── main.py             # FastAPI app and route definitions
+├── rules_engine.py     # 6 security rule implementations
+├── compliance.py       # Severity-weighted score calculation
+├── ai_simulation.py    # Contextual summary generation
+├── explain.py          # Markdown fix guide loader
+├── models/
+│   └── schemas.py      # Pydantic models (Finding, ScanRequest, ScanResponse)
+└── fix_library/
+    └── rule_*_fix.md   # Per-rule remediation guides
+```
+
+---
+
+## Key Features
+
+- **Drag-and-drop upload** — drop a `.json` file directly onto the upload zone
+- **Real-time validation** — JSON syntax and schema errors shown inline as you type
+- **Built-in test presets** — Secure, Vulnerable, and Robots-exposed sample configs
+- **Collapsible findings** — each finding expands to show a specific recommended fix
+- **Filter by severity** — view All, Warning, or Info findings
+- **Scan history** — last 10 scans saved locally; re-open or delete any entry
+- **Light/Dark mode** — toggle persisted to localStorage
+- **Keyboard shortcuts** — `Ctrl+Enter` to run scan, `Ctrl+Shift+F` to format JSON
+- **No installation** — runs from static files, no build process
+
+---
+
+## Implementation Highlights
+
+**Deterministic scan engine**
+Scan IDs and timestamps are derived from a bitwise rolling hash of the input config string. Identical configs always produce identical results — making the tool reproducible and testable without a database or random state.
+
+**No build toolchain**
+The entire frontend runs from plain `.js` files loaded via `<script>` tags. Alpine.js is pulled from CDN. No webpack, no npm, no compilation — the whole UI is editable and deployable as static files.
+
+**Severity-weighted compliance scoring**
+Rather than a simple pass/fail percentage, the backend deducts points by severity from a 100-point baseline. A single CRITICAL finding costs 25 points, producing a more meaningful risk score than counting issues equally.
+
+**Markdown-based fix library**
+Each backend rule maps to a `.md` file in `/fix_library/`. Remediation content is fully decoupled from rule logic — fix instructions can be updated without touching the rules engine.
+
+**Zero network dependency for core features**
+The frontend scan engine, validator, and storage all work completely offline. No API calls are made during a scan. Data never leaves the browser.
+
+---
+
+## Themes
+
+| | Light | Dark |
+|--|-------|------|
+| **Background** | `#F3F4F6` | `#1C1F23` |
+| **Card** | `#FFFFFF` | `#262A31` |
+| **Accent** | `#2C7DF0` | `#6CA5FF` |
+| **Text** | `#1F2933` | `#E7E9EC` |
+
+---
+
+## License
+
+MIT
