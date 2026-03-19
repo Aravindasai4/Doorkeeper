@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DoorKeeper - Security Scanner</title>
+  <link rel="stylesheet" href="/static/styles.css?v=2">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body :class="{ 'dark': isDarkMode }">
+  <div x-data="doorkeeper()" x-init="init()" @keydown.window="handleKeyboard($event)">
+    
+    <!-- Top Navigation -->
+    <nav class="top-nav">
+      <div class="nav-content">
+        <div class="nav-left">
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span class="nav-brand">DoorKeeper</span>
+        </div>
+        <div class="nav-right">
+          <a href="#" class="nav-link">Docs</a>
+          <a href="#" class="nav-link">GitHub</a>
+          <button @click="toggleTheme()" class="theme-toggle" aria-label="Toggle theme">
+            <span x-text="isDarkMode ? 'Dark' : 'Light'"></span>
+            <div class="toggle-switch" :class="{ 'active': isDarkMode }">
+              <div class="toggle-thumb"></div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      
+      <!-- Upload Configuration Card -->
+      <section class="card">
+        <h2 class="card-title">Upload Configuration</h2>
+        <p class="card-subtitle">Drop a JSON config file or choose a sample to get started.</p>
+        
+        <!-- Drop Zone -->
+        <div 
+          class="drop-zone"
+          @click="$refs.fileInput.click()"
+          @drop.prevent="handleFileDrop($event)"
+          @dragover.prevent
+          @dragenter.prevent
+        >
+          <input 
+            type="file" 
+            accept=".json"
+            @change="handleFileSelect($event)"
+            style="display: none;"
+            x-ref="fileInput"
+          />
+          
+          <svg class="drop-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M7 18a4.6 4.4 0 0 1 0 -9a5 4.5 0 0 1 11 2h1a3.5 3.5 0 0 1 0 7h-1"></path>
+            <polyline points="9 15 12 12 15 15"></polyline>
+            <line x1="12" y1="12" x2="12" y2="21"></line>
+          </svg>
+          
+          <div class="drop-text-wrapper">
+            <span class="drop-text-primary">Drag & drop your JSON file here</span>
+            <span class="drop-text-secondary">or click to browse</span>
+          </div>
+          
+          <!-- File name pill when uploaded -->
+          <div x-show="uploadedFileName" class="file-pill">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <span x-text="uploadedFileName"></span>
+          </div>
+        </div>
+
+        <!-- Hidden textarea for existing JS logic -->
+        <textarea 
+          id="config-input"
+          x-model="configJson"
+          @input="validateJson()"
+          style="display: none;"
+        ></textarea>
+
+        <!-- Validation Status -->
+        <div class="validation-row" x-show="configJson.trim()">
+          <span class="validation-label">Configuration loaded</span>
+          <span 
+            class="status-pill" 
+            :class="{ 
+              'status-valid': jsonStatus.valid && schemaStatus.valid,
+              'status-invalid': !jsonStatus.valid || !schemaStatus.valid
+            }"
+          >
+            <span x-show="jsonStatus.valid && schemaStatus.valid">✓ Valid</span>
+            <span x-show="!jsonStatus.valid || !schemaStatus.valid">✗ Invalid</span>
+          </span>
+        </div>
+
+        <!-- Error message -->
+        <div x-show="schemaStatus.error" class="error-message" x-text="schemaStatus.error"></div>
+
+        <!-- Action Buttons -->
+        <div class="button-row">
+          <button 
+            @click="loadPreset('goodHttps')" 
+            class="btn btn-outline"
+          >
+            Use Secure Sample
+          </button>
+          <button 
+            @click="loadPreset('noHttps')" 
+            class="btn btn-outline"
+          >
+            Use Vulnerable Sample
+          </button>
+        </div>
+
+        <button 
+          @click="runScan()" 
+          class="btn btn-primary"
+          :disabled="!canRunScan"
+        >
+          <span x-show="!scanning">Run Scan</span>
+          <span x-show="scanning">Scanning...</span>
+        </button>
+
+        <button 
+          @click="showRawJson = !showRawJson" 
+          class="view-json-link"
+          x-show="configJson.trim()"
+        >
+          <span x-show="!showRawJson">View raw JSON</span>
+          <span x-show="showRawJson">Hide raw JSON</span>
+        </button>
+
+        <!-- Raw JSON Section -->
+        <div x-show="showRawJson" class="raw-json-section">
+          <pre x-text="configJson"></pre>
+        </div>
+      </section>
+
+      <!-- 2. Scan Overview Card -->
+      <section class="card overview-card" x-show="currentResult || scanning">
+        <h2 class="card-title">Scan Overview</h2>
+        
+        <!-- Loading State -->
+        <div x-show="scanning" class="overview-loading">
+          <div class="skeleton-pill"></div>
+          <div class="skeleton-stats"></div>
+        </div>
+
+        <!-- Results State -->
+        <div x-show="!scanning && currentResult" class="overview-content">
+          <div class="overview-header">
+            <span class="status-pill" :class="'status-' + currentResult?.summary">
+              <span x-text="currentResult?.summary === 'pass' ? 'Secure' : (currentResult?.summary === 'fail' ? 'Critical Issues' : 'Issues Found')"></span>
+            </span>
+            <span class="overview-target" x-text="currentResult?.target"></span>
+          </div>
+          
+          <div class="overview-stats">
+            <div class="stat-item">
+              <div class="stat-value" x-text="currentResult?.findings.length || 0"></div>
+              <div class="stat-label">Total Checks</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" x-text="(currentResult?.findings.filter(f => f.severity === 'high').length || 0)"></div>
+              <div class="stat-label">Critical</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" x-text="(currentResult?.findings.filter(f => f.severity === 'medium').length || 0)"></div>
+              <div class="stat-label">Warnings</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" x-text="(currentResult?.findings.filter(f => f.severity === 'low').length || 0)"></div>
+              <div class="stat-label">Info</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Findings Card -->
+      <section class="card findings-card" x-show="currentResult && !scanning" x-data="{filter: 'all', expanded: {}}">
+        <div class="findings-header">
+          <h2 class="card-title">Findings</h2>
+          <div class="filter-chips">
+            <button @click="filter = 'all'" :class="filter === 'all' ? 'chip-active' : 'chip'">All</button>
+            <button @click="filter = 'high'" :class="filter === 'high' ? 'chip-active' : 'chip'">Critical</button>
+            <button @click="filter = 'medium'" :class="filter === 'medium' ? 'chip-active' : 'chip'">Warning</button>
+            <button @click="filter = 'low'" :class="filter === 'low' ? 'chip-active' : 'chip'">Info</button>
+          </div>
+        </div>
+
+        <!-- No Findings -->
+        <div x-show="currentResult?.findings.length === 0" class="empty-findings">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <p>No security issues found</p>
+        </div>
+
+        <!-- Findings List -->
+        <div class="findings-list">
+          <template x-for="finding in currentResult?.findings.filter(f => filter === 'all' || f.severity === filter)" :key="finding.id">
+            <div class="finding-item">
+              <div class="finding-main" @click="expanded[finding.id] = !expanded[finding.id]">
+                <span class="severity-pill" :class="'severity-' + finding.severity" x-text="finding.severity"></span>
+                <div class="finding-content">
+                  <h3 class="finding-title" x-text="finding.title"></h3>
+                  <p class="finding-detail" x-text="finding.detail"></p>
+                </div>
+                <svg class="expand-icon" :class="expanded[finding.id] ? 'expanded' : ''" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+              <div x-show="expanded[finding.id]" class="finding-recommendation" x-collapse>
+                <div class="recommendation-label">Recommended fix</div>
+                <p x-text="finding.recommendation"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+      <!-- 4. Recent Scans Card -->
+      <section class="card recent-card">
+        <h2 class="card-title">Recent Scans</h2>
+        
+        <!-- Empty State -->
+        <div x-show="recentScans.length === 0" class="empty-recent">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+          </svg>
+          <p>No scan yet</p>
+          <p class="empty-hint">Run your first security scan to see results here</p>
+        </div>
+
+        <!-- Recent Scans List -->
+        <div x-show="recentScans.length > 0" class="recent-list">
+          <template x-for="scan in recentScans.slice(0, 5)" :key="scan.id">
+            <div class="recent-row">
+              <div class="recent-info">
+                <span class="recent-date" x-text="formatDate(scan.startedAt)"></span>
+                <span class="recent-target" x-text="scan.target"></span>
+              </div>
+              <div class="recent-actions">
+                <span class="summary-mini" :class="'summary-' + scan.summary" x-text="scan.summary"></span>
+                <button @click="viewScan(scan.id)" class="btn-link">Open</button>
+              </div>
+            </div>
+          </template>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container">
+      <template x-for="toast in toasts" :key="toast.id">
+        <div class="toast" :class="'toast-' + toast.type" x-show="toast.visible" x-transition>
+          <span x-text="toast.message"></span>
+        </div>
+      </template>
+    </div>
+
+  </div>
+  <script src="/static/schema.js"></script>
+  <script src="/static/mock-scan.js"></script>
+  <script src="/static/storage.js"></script>
+  <script src="/static/script.js"></script>
+</body>
+</html>

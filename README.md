@@ -1,0 +1,220 @@
+# DoorKeeper
+
+> A browser-based security configuration auditing tool. Paste a JSON config, get a full security report — no backend, no setup, no data leaves your machine.
+
+---
+
+## What It Does
+
+DoorKeeper evaluates system configuration files against a ruleset of security best practices. You describe your infrastructure in JSON — ports, authentication, encryption, logging, backup policy — and DoorKeeper tells you what's misconfigured, how severe it is, and how to fix it.
+
+**Problem it solves:** Security misconfigurations are one of the leading causes of breaches. DoorKeeper gives developers and sysadmins a fast, zero-setup way to audit a system's config before deploying.
+
+**Target users:** Developers, DevOps engineers, and security teams who want to check infrastructure or application configs without running a full penetration test or third-party scanner.
+
+---
+
+## Live Demo
+
+1. Open the app
+2. Click **Use Secure Sample** or **Use Vulnerable Sample**
+3. Click **Run Scan**
+4. Review findings, expand each one for a recommended fix
+
+---
+
+## Technical Stack
+
+### Frontend
+
+| Tool | Role |
+|------|------|
+| **Alpine.js 3.x** | Reactive UI state — no build step required |
+| **Vanilla JavaScript** | All scan logic, validation, and storage |
+| **CSS Variables** | Full light/dark theming |
+| **Browser LocalStorage** | Persists scan history client-side |
+| **Google Fonts (Inter)** | Typography |
+
+### Backend *(optional — app runs fully without it)*
+
+| Tool | Role |
+|------|------|
+| **FastAPI** | Python REST API framework |
+| **Uvicorn** | ASGI server on port 5000 |
+| **Pydantic v2** | Request schema modeling and validation |
+
+### Storage
+- **Frontend:** `localStorage` under key `doorkeeper_recent_scans`, capped at 10 entries
+- **Backend:** In-memory Python dict (intentional for demo — no database dependency)
+
+### AI/ML
+None. The `ai_simulation.py` module generates contextual text from hardcoded templates based on findings — it is not a live model call.
+
+---
+
+## Architecture & Data Flow
+
+### Frontend-only flow *(production)*
+
+```
+User Input (JSON)
+      │
+      ▼
+schema.js → ConfigSchema.validate()
+  Checks required fields and correct types
+      │
+      ▼
+mock-scan.js → runMockScan()
+  Rule 1 │ ports.includes(80) && !ports.includes(443)  → HTTPS not enforced
+  Rule 2 │ target.startsWith('http://')                → Unencrypted protocol
+  Rule 3 │ httpSecurityHeaders flag                    → CSP, HSTS, X-Frame-Options
+  Rule 4 │ robotsTxt flag                              → Admin path exposure
+  Rule 5 │ ports ∩ [21, 23, 3389, 5900]               → Insecure services open
+      │
+      ▼
+storage.js → ScanStorage.save()
+  Prepends result to localStorage array, trims to 10 entries
+      │
+      ▼
+script.js (Alpine.js) → Renders findings to UI
+```
+
+### Backend flow *(optional)*
+
+```
+POST /api/scan
+      │
+      ▼
+RulesEngine.run_all_checks(config)
+  rule_1 │ Password policy      (min length 12, uppercase, numbers, special chars)
+  rule_2 │ Encryption standard  (SSL/TLS1.0/1.1 = CRITICAL, TLS1.2/1.3 = pass)
+  rule_3 │ Open ports           (risky: 21, 23, 53, 135, 139, 445, 1433, 3389, 5432)
+  rule_4 │ Auth method          (MFA/OAuth/SAML = pass, password-only = MEDIUM)
+  rule_5 │ Logging config       (enabled, valid level, audit trail, ≥30 day retention)
+  rule_6 │ Backup settings      (enabled, daily/hourly, encrypted, offsite, ≥30 days)
+      │
+      ▼
+ComplianceCalculator → severity-weighted score (0–100)
+  Critical = −25 pts │ High = −20 pts │ Medium = −10 pts │ Low = −5 pts
+      │
+      ▼
+ExplanationEngine → loads /fix_library/rule_N_fix.md
+      │
+      ▼
+Response: { scan_id, findings, compliance_score, summary }
+```
+
+> **Note:** The frontend and backend implement separate but complementary rule sets. The frontend covers network surface (HTTP/HTTPS, ports, headers). The backend covers system internals (auth, encryption, logging, backup). They share the same UI but are independent engines.
+
+---
+
+## Configuration Schema
+
+```json
+{
+  "target": "https://example.com",
+  "checks": {
+    "ports": [80, 443],
+    "httpSecurityHeaders": true,
+    "robotsTxt": true
+  },
+  "tags": ["production", "webapp"],
+  "note": "Optional description"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `target` | `string` | Yes | URL or hostname to scan |
+| `checks.ports` | `number[]` | No | Port numbers to evaluate |
+| `checks.httpSecurityHeaders` | `boolean` | No | Run HTTP security header checks |
+| `checks.robotsTxt` | `boolean` | No | Check for robots.txt path exposure |
+| `tags` | `string[]` | No | Labels for organizing scans |
+| `note` | `string` | No | Free-text description |
+
+---
+
+## API Endpoints *(backend)*
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Serves `index.html` |
+| `POST` | `/api/scan` | Runs all 6 rules, returns findings + compliance score |
+| `GET` | `/api/reports` | Lists all in-memory scan reports |
+| `GET` | `/api/reports/{scan_id}` | Retrieves one report by ID |
+| `GET` | `/static/*` | Serves frontend assets |
+
+---
+
+## File Structure
+
+```
+door_keeper_frontend/
+├── index.html          # UI structure and Alpine.js bindings
+├── styles.css          # Light/dark theming via CSS variables
+├── script.js           # App controller and state management
+├── schema.js           # JSON config schema validator
+├── mock-scan.js        # Deterministic client-side scan engine
+└── storage.js          # LocalStorage wrapper for scan history
+
+door_keeper_backend/
+├── main.py             # FastAPI app and route definitions
+├── rules_engine.py     # 6 security rule implementations
+├── compliance.py       # Severity-weighted score calculation
+├── ai_simulation.py    # Contextual summary generation
+├── explain.py          # Markdown fix guide loader
+├── models/
+│   └── schemas.py      # Pydantic models (Finding, ScanRequest, ScanResponse)
+└── fix_library/
+    └── rule_*_fix.md   # Per-rule remediation guides
+```
+
+---
+
+## Key Features
+
+- **Drag-and-drop upload** — drop a `.json` file directly onto the upload zone
+- **Real-time validation** — JSON syntax and schema errors shown inline as you type
+- **Built-in test presets** — Secure, Vulnerable, and Robots-exposed sample configs
+- **Collapsible findings** — each finding expands to show a specific recommended fix
+- **Filter by severity** — view All, Warning, or Info findings
+- **Scan history** — last 10 scans saved locally; re-open or delete any entry
+- **Light/Dark mode** — toggle persisted to localStorage
+- **Keyboard shortcuts** — `Ctrl+Enter` to run scan, `Ctrl+Shift+F` to format JSON
+- **No installation** — runs from static files, no build process
+
+---
+
+## Implementation Highlights
+
+**Deterministic scan engine**
+Scan IDs and timestamps are derived from a bitwise rolling hash of the input config string. Identical configs always produce identical results — making the tool reproducible and testable without a database or random state.
+
+**No build toolchain**
+The entire frontend runs from plain `.js` files loaded via `<script>` tags. Alpine.js is pulled from CDN. No webpack, no npm, no compilation — the whole UI is editable and deployable as static files.
+
+**Severity-weighted compliance scoring**
+Rather than a simple pass/fail percentage, the backend deducts points by severity from a 100-point baseline. A single CRITICAL finding costs 25 points, producing a more meaningful risk score than counting issues equally.
+
+**Markdown-based fix library**
+Each backend rule maps to a `.md` file in `/fix_library/`. Remediation content is fully decoupled from rule logic — fix instructions can be updated without touching the rules engine.
+
+**Zero network dependency for core features**
+The frontend scan engine, validator, and storage all work completely offline. No API calls are made during a scan. Data never leaves the browser.
+
+---
+
+## Themes
+
+| | Light | Dark |
+|--|-------|------|
+| **Background** | `#F3F4F6` | `#1C1F23` |
+| **Card** | `#FFFFFF` | `#262A31` |
+| **Accent** | `#2C7DF0` | `#6CA5FF` |
+| **Text** | `#1F2933` | `#E7E9EC` |
+
+---
+
+## License
+
+MIT

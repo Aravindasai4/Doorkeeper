@@ -1,0 +1,15 @@
+run = "cd door_keeper_backend && python main.py"
+modules = ["python-3.11"]
+
+[nix]
+channel = "stable-22_11"
+
+[env]
+PYTHONPATH = "/home/runner/$REPL_SLUG/door_keeper_backend"
+
+[gitHubImport]
+requiredFiles = [".replit", "replit.nix"]
+
+[deployment]
+run = ["sh", "-c", "cd door_keeper_backend && python main.py"]
+deploymentTarget = "cloudrun"
