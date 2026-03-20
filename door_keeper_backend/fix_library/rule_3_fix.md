@@ -1,5 +1,3 @@
-### door_keeper_backend/fix_library/rule_3_fix.md
-```markdown
 # Open Ports Security Fix
 
 ## Issue
