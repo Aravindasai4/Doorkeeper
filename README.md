@@ -4,11 +4,39 @@
 
 ---
 
+## Table of Contents
+
+- [Business Value](#business-value)
+- [What It Does](#what-it-does)
+- [Live Demo](#live-demo)
+- [Technical Stack](#technical-stack)
+- [Architecture & Data Flow](#architecture--data-flow)
+- [Configuration Schema](#configuration-schema)
+- [Sample Scan Output](#sample-scan-output)
+- [API Endpoints](#api-endpoints-backend)
+- [File Structure](#file-structure)
+- [Key Features](#key-features)
+- [Implementation Highlights](#implementation-highlights)
+- [Governance Framework Mappings](#governance-framework-mappings)
+- [Roadmap & Integration](#roadmap--integration)
+- [Themes](#themes)
+- [License](#license)
+
+---
+
+## Business Value
+
+Security misconfigurations cause **68% of cloud breaches** (IBM Cost of a Data Breach, 2023). Most teams catch them late — after deployment, during an incident, or in a compliance audit.
+
+DoorKeeper moves that check earlier. Drop in a JSON config before you deploy and get an instant, structured report: what's misconfigured, how severe it is, and exactly how to fix it. No agents to install, no credentials to hand over, no data leaves the browser.
+
+For AI systems specifically, DoorKeeper is one of the few open tools that checks model governance controls — version pinning, output logging, human-in-the-loop thresholds, and bias monitoring — mapped directly to NIST AI RMF and ISO 42001.
+
+---
+
 ## What It Does
 
 DoorKeeper evaluates system configuration files against a ruleset of security best practices. You describe your infrastructure in JSON — ports, authentication, encryption, logging, backup policy, and AI model controls — and DoorKeeper tells you what's misconfigured, how severe it is, and how to fix it.
-
-**Problem it solves:** Security misconfigurations are one of the leading causes of breaches, and AI systems introduce a new class of governance risks — unpinned model versions, unlogged outputs, and missing human oversight. DoorKeeper gives developers, DevOps engineers, and AI teams a fast, zero-setup way to audit a system's config before deploying.
 
 **Target users:** Developers, DevOps engineers, security teams, and AI governance practitioners who want to check infrastructure or application configs without running a full penetration test or third-party scanner.
 
@@ -162,6 +190,49 @@ Response: { scan_id, findings, compliance_score, summary }
 
 ---
 
+## Sample Scan Output
+
+Running a scan on a vulnerable config produces a structured JSON response:
+
+```json
+{
+  "scan_id": "a3f9c1d2-7b4e-4a1f-9e8d-2c6b5f0e1a3d",
+  "timestamp": "2025-03-20T14:32:01.443Z",
+  "compliance_score": 42.5,
+  "findings": [
+    {
+      "rule_id": "rule_2",
+      "rule_name": "Encryption Standards",
+      "severity": "critical",
+      "passed": false,
+      "message": "Weak encryption protocol detected: TLS1.0",
+      "fix_suggestion": "Upgrade to TLS 1.2 or TLS 1.3. Disable SSL, TLS 1.0, and TLS 1.1.",
+      "affected_items": ["network.encryption"]
+    },
+    {
+      "rule_id": "rule_4",
+      "rule_name": "Authentication Method Security",
+      "severity": "medium",
+      "passed": false,
+      "message": "Password-only authentication is not recommended",
+      "fix_suggestion": "Implement MFA using TOTP, SMS, or hardware tokens.",
+      "affected_items": ["authentication.method"]
+    },
+    {
+      "rule_id": "rule_7",
+      "rule_name": "AI Model Governance Controls",
+      "severity": "high",
+      "passed": false,
+      "message": "AI governance issues found: Model version is not pinned; Output logging disabled; No human-in-the-loop threshold defined",
+      "fix_suggestion": "See fix_library/rule_7_fix.md",
+      "affected_items": ["ai_model", "NIST AI RMF: GOVERN 1.1", "ISO 42001: 6.1.2"]
+    }
+  ]
+}
+```
+
+---
+
 ## API Endpoints *(backend)*
 
 | Method | Endpoint | Description |
@@ -245,6 +316,27 @@ The frontend scan engine, validator, and storage all work completely offline. No
 | Rule 7 | Human oversight | EU AI Act: Article 14 |
 | Rule 7 | Bias and fairness monitoring | NIST AI RMF: MANAGE 2.2 |
 | Rule 7 | Data lineage | ISO 42001: 8.4 |
+
+---
+
+## Roadmap & Integration
+
+DoorKeeper is the **Identity & Access Layer** of a 4-part AI governance stack being built as an open portfolio:
+
+| Layer | Project | Status |
+|-------|---------|--------|
+| 1 — Identity & Access | **DoorKeeper** ← you are here | ✅ Complete |
+| 2 — Monitoring & Observability | AI Governance Dashboard | ✅ Complete |
+| 3 — Safety & Content Guardrails | Guardrails API (NLI model) | ✅ Complete |
+| 4 — Security Posture | DevGuard | ✅ Complete |
+
+**Planned enhancements:**
+- Wire frontend directly to backend API (replace mock scan engine)
+- Add a live AI governance config preset to the frontend test suite
+- Export scan reports as PDF for compliance documentation
+- Add GitHub Actions integration to run scans on config file changes in CI
+
+> Scan results from DoorKeeper can feed directly into the **AI Governance Dashboard** for cross-project risk aggregation and compliance scoring.
 
 ---
 
