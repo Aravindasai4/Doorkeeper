@@ -1,36 +1,62 @@
-DoorKeeper
+# DoorKeeper
 
-A browser-based security configuration auditing tool. Paste a JSON config, get a full security report — no backend, no setup, no data leaves your machine.
+> A browser-based security configuration auditing tool. Paste a JSON config, get a full security report — no backend, no setup, no data leaves your machine.
 
+---
 
-What It Does
+## What It Does
+
 DoorKeeper evaluates system configuration files against a ruleset of security best practices. You describe your infrastructure in JSON — ports, authentication, encryption, logging, backup policy, and AI model controls — and DoorKeeper tells you what's misconfigured, how severe it is, and how to fix it.
-Problem it solves: Security misconfigurations are one of the leading causes of breaches, and AI systems introduce a new class of governance risks — unpinned model versions, unlogged outputs, and missing human oversight. DoorKeeper gives developers, DevOps engineers, and AI teams a fast, zero-setup way to audit a system's config before deploying.
-Target users: Developers, DevOps engineers, security teams, and AI governance practitioners who want to check infrastructure or application configs without running a full penetration test or third-party scanner.
 
-Live Demo
+**Problem it solves:** Security misconfigurations are one of the leading causes of breaches, and AI systems introduce a new class of governance risks — unpinned model versions, unlogged outputs, and missing human oversight. DoorKeeper gives developers, DevOps engineers, and AI teams a fast, zero-setup way to audit a system's config before deploying.
 
-Open the app
-Click Use Secure Sample or Use Vulnerable Sample
-Click Run Scan
-Review findings, expand each one for a recommended fix
+**Target users:** Developers, DevOps engineers, security teams, and AI governance practitioners who want to check infrastructure or application configs without running a full penetration test or third-party scanner.
 
+---
 
-Technical Stack
-Frontend
-ToolRoleAlpine.js 3.xReactive UI state — no build step requiredVanilla JavaScriptAll scan logic, validation, and storageCSS VariablesFull light/dark themingBrowser LocalStoragePersists scan history client-sideGoogle Fonts (Inter)Typography
-Backend (optional — app runs fully without it)
-ToolRoleFastAPIPython REST API frameworkUvicornASGI server on port 5000Pydantic v2Request schema modeling and validation
-Storage
+## Live Demo
 
-Frontend: localStorage under key doorkeeper_recent_scans, capped at 10 entries
-Backend: In-memory Python dict (intentional for demo — no database dependency)
+1. Open the app
+2. Click **Use Secure Sample** or **Use Vulnerable Sample**
+3. Click **Run Scan**
+4. Review findings, expand each one for a recommended fix
 
-AI/ML
-None. The ai_simulation.py module generates contextual text from hardcoded templates based on findings — it is not a live model call.
+---
 
-Architecture & Data Flow
-Frontend-only flow (production)
+## Technical Stack
+
+### Frontend
+
+| Tool | Role |
+|------|------|
+| **Alpine.js 3.x** | Reactive UI state — no build step required |
+| **Vanilla JavaScript** | All scan logic, validation, and storage |
+| **CSS Variables** | Full light/dark theming |
+| **Browser LocalStorage** | Persists scan history client-side |
+| **Google Fonts (Inter)** | Typography |
+
+### Backend *(optional — app runs fully without it)*
+
+| Tool | Role |
+|------|------|
+| **FastAPI** | Python REST API framework |
+| **Uvicorn** | ASGI server on port 5000 |
+| **Pydantic v2** | Request schema modeling and validation |
+
+### Storage
+- **Frontend:** `localStorage` under key `doorkeeper_recent_scans`, capped at 10 entries
+- **Backend:** In-memory Python dict (intentional for demo — no database dependency)
+
+### AI/ML
+None. The `ai_simulation.py` module generates contextual text from hardcoded templates based on findings — it is not a live model call.
+
+---
+
+## Architecture & Data Flow
+
+### Frontend-only flow *(production)*
+
+```
 User Input (JSON)
       │
       ▼
@@ -51,7 +77,11 @@ storage.js → ScanStorage.save()
       │
       ▼
 script.js (Alpine.js) → Renders findings to UI
-Backend flow (optional)
+```
+
+### Backend flow *(optional)*
+
+```
 POST /api/scan
       │
       ▼
@@ -75,13 +105,18 @@ ExplanationEngine → loads /fix_library/rule_N_fix.md
       │
       ▼
 Response: { scan_id, findings, compliance_score, summary }
+```
 
-Note: The frontend and backend implement separate but complementary rule sets. The frontend covers network surface (HTTP/HTTPS, ports, headers). The backend covers system internals (auth, encryption, logging, backup, and AI model governance). They share the same UI but are independent engines.
+> **Note:** The frontend and backend implement separate but complementary rule sets. The frontend covers network surface (HTTP/HTTPS, ports, headers). The backend covers system internals (auth, encryption, logging, backup, and AI model governance). They share the same UI but are independent engines.
 
+---
 
-Configuration Schema
-Standard config (frontend + backend rules 1–6)
-json{
+## Configuration Schema
+
+### Standard config (frontend + backend rules 1–6)
+
+```json
+{
   "target": "https://example.com",
   "checks": {
     "ports": [80, 443],
@@ -91,8 +126,12 @@ json{
   "tags": ["production", "webapp"],
   "note": "Optional description"
 }
-AI model governance config (backend rule 7)
-json{
+```
+
+### AI model governance config (backend rule 7)
+
+```json
+{
   "ai_model": {
     "version_pinned": true,
     "model_version": "gpt-4-0613",
@@ -136,6 +175,7 @@ json{
 ---
 
 ## File Structure
+
 ```
 door_keeper_frontend/
 ├── index.html          # UI structure and Alpine.js bindings
@@ -155,40 +195,70 @@ door_keeper_backend/
 │   └── schemas.py      # Pydantic models (Finding, ScanRequest, ScanResponse)
 └── fix_library/
     └── rule_*_fix.md   # Per-rule remediation guides (rules 1–7)
+```
 
-Key Features
+---
 
-Drag-and-drop upload — drop a .json file directly onto the upload zone
-Real-time validation — JSON syntax and schema errors shown inline as you type
-Built-in test presets — Secure, Vulnerable, and Robots-exposed sample configs
-Collapsible findings — each finding expands to show a specific recommended fix
-Filter by severity — view All, Critical, Warning, or Info findings
-Scan history — last 10 scans saved locally; re-open or delete any entry
-Light/Dark mode — toggle persisted to localStorage
-Keyboard shortcuts — Ctrl+Enter to run scan, Ctrl+Shift+F to format JSON
-No installation — runs from static files, no build process
-AI governance checks — Rule 7 evaluates AI model configs against NIST AI RMF and ISO 42001
+## Key Features
 
+- **Drag-and-drop upload** — drop a `.json` file directly onto the upload zone
+- **Real-time validation** — JSON syntax and schema errors shown inline as you type
+- **Built-in test presets** — Secure, Vulnerable, and Robots-exposed sample configs
+- **Collapsible findings** — each finding expands to show a specific recommended fix
+- **Filter by severity** — view All, Critical, Warning, or Info findings
+- **Scan history** — last 10 scans saved locally; re-open or delete any entry
+- **Light/Dark mode** — toggle persisted to localStorage
+- **Keyboard shortcuts** — `Ctrl+Enter` to run scan, `Ctrl+Shift+F` to format JSON
+- **No installation** — runs from static files, no build process
+- **AI governance checks** — Rule 7 evaluates AI model configs against NIST AI RMF and ISO 42001
 
-Implementation Highlights
-Deterministic scan engine
+---
+
+## Implementation Highlights
+
+**Deterministic scan engine**
 Scan IDs and timestamps are derived from a bitwise rolling hash of the input config string. Identical configs always produce identical results — making the tool reproducible and testable without a database or random state.
-No build toolchain
-The entire frontend runs from plain .js files loaded via <script> tags. Alpine.js is pulled from CDN. No webpack, no npm, no compilation — the whole UI is editable and deployable as static files.
-Severity-weighted compliance scoring
+
+**No build toolchain**
+The entire frontend runs from plain `.js` files loaded via `<script>` tags. Alpine.js is pulled from CDN. No webpack, no npm, no compilation — the whole UI is editable and deployable as static files.
+
+**Severity-weighted compliance scoring**
 Rather than a simple pass/fail percentage, the backend deducts points by severity from a 100-point baseline. A single CRITICAL finding costs 25 points, producing a more meaningful risk score than counting issues equally.
-Markdown-based fix library
-Each backend rule maps to a .md file in /fix_library/. Remediation content is fully decoupled from rule logic — fix instructions can be updated without touching the rules engine.
-AI model governance (Rule 7)
-Rule 7 checks AI system configurations against five controls drawn from the NIST AI Risk Management Framework (GOVERN 1.1) and ISO/IEC 42001:2023 (6.1.2): model version pinning, output logging, human-in-the-loop thresholds, bias monitoring, and data provenance tracking. Each failed control maps to a specific remediation guide in fix_library/rule_7_fix.md.
-Zero network dependency for core features
+
+**Markdown-based fix library**
+Each backend rule maps to a `.md` file in `/fix_library/`. Remediation content is fully decoupled from rule logic — fix instructions can be updated without touching the rules engine.
+
+**AI model governance (Rule 7)**
+Rule 7 checks AI system configurations against five controls drawn from the NIST AI Risk Management Framework (GOVERN 1.1) and ISO/IEC 42001:2023 (6.1.2): model version pinning, output logging, human-in-the-loop thresholds, bias monitoring, and data provenance tracking. Each failed control maps to a specific remediation guide in `fix_library/rule_7_fix.md`.
+
+**Zero network dependency for core features**
 The frontend scan engine, validator, and storage all work completely offline. No API calls are made during a scan. Data never leaves the browser.
 
-Governance Framework Mappings
-RuleControlFramework ReferenceRule 7Model version governanceNIST AI RMF: GOVERN 1.1Rule 7Output auditabilityISO 42001: 6.1.2Rule 7Human oversightEU AI Act: Article 14Rule 7Bias and fairness monitoringNIST AI RMF: MANAGE 2.2Rule 7Data lineageISO 42001: 8.4
+---
 
-Themes
-LightDarkBackground#F3F4F6#1C1F23Card#FFFFFF#262A31Accent#2C7DF0#6CA5FFText#1F2933#E7E9EC
+## Governance Framework Mappings
 
-License
+| Rule | Control | Framework Reference |
+|------|---------|-------------------|
+| Rule 7 | Model version governance | NIST AI RMF: GOVERN 1.1 |
+| Rule 7 | Output auditability | ISO 42001: 6.1.2 |
+| Rule 7 | Human oversight | EU AI Act: Article 14 |
+| Rule 7 | Bias and fairness monitoring | NIST AI RMF: MANAGE 2.2 |
+| Rule 7 | Data lineage | ISO 42001: 8.4 |
+
+---
+
+## Themes
+
+| | Light | Dark |
+|--|-------|------|
+| **Background** | `#F3F4F6` | `#1C1F23` |
+| **Card** | `#FFFFFF` | `#262A31` |
+| **Accent** | `#2C7DF0` | `#6CA5FF` |
+| **Text** | `#1F2933` | `#E7E9EC` |
+
+---
+
+## License
+
 MIT
