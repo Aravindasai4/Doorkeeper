@@ -7,7 +7,6 @@ Implements 6 security/compliance rule checks
 from typing import List, Dict, Any
 from .models.schemas import Finding, SeverityLevel
 from .explain import ExplanationEngine
-import re
 
 
 class RulesEngine:
