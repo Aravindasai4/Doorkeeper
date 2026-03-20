@@ -1,5 +1,3 @@
-### door_keeper_backend/fix_library/rule_5_fix.md
-```markdown
 # Logging and Monitoring Fix
 
 ## Issue
