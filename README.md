@@ -1,62 +1,36 @@
-# DoorKeeper
+DoorKeeper
 
-> A browser-based security configuration auditing tool. Paste a JSON config, get a full security report — no backend, no setup, no data leaves your machine.
+A browser-based security configuration auditing tool. Paste a JSON config, get a full security report — no backend, no setup, no data leaves your machine.
 
----
 
-## What It Does
+What It Does
+DoorKeeper evaluates system configuration files against a ruleset of security best practices. You describe your infrastructure in JSON — ports, authentication, encryption, logging, backup policy, and AI model controls — and DoorKeeper tells you what's misconfigured, how severe it is, and how to fix it.
+Problem it solves: Security misconfigurations are one of the leading causes of breaches, and AI systems introduce a new class of governance risks — unpinned model versions, unlogged outputs, and missing human oversight. DoorKeeper gives developers, DevOps engineers, and AI teams a fast, zero-setup way to audit a system's config before deploying.
+Target users: Developers, DevOps engineers, security teams, and AI governance practitioners who want to check infrastructure or application configs without running a full penetration test or third-party scanner.
 
-DoorKeeper evaluates system configuration files against a ruleset of security best practices. You describe your infrastructure in JSON — ports, authentication, encryption, logging, backup policy — and DoorKeeper tells you what's misconfigured, how severe it is, and how to fix it.
+Live Demo
 
-**Problem it solves:** Security misconfigurations are one of the leading causes of breaches. DoorKeeper gives developers and sysadmins a fast, zero-setup way to audit a system's config before deploying.
+Open the app
+Click Use Secure Sample or Use Vulnerable Sample
+Click Run Scan
+Review findings, expand each one for a recommended fix
 
-**Target users:** Developers, DevOps engineers, and security teams who want to check infrastructure or application configs without running a full penetration test or third-party scanner.
 
----
+Technical Stack
+Frontend
+ToolRoleAlpine.js 3.xReactive UI state — no build step requiredVanilla JavaScriptAll scan logic, validation, and storageCSS VariablesFull light/dark themingBrowser LocalStoragePersists scan history client-sideGoogle Fonts (Inter)Typography
+Backend (optional — app runs fully without it)
+ToolRoleFastAPIPython REST API frameworkUvicornASGI server on port 5000Pydantic v2Request schema modeling and validation
+Storage
 
-## Live Demo
+Frontend: localStorage under key doorkeeper_recent_scans, capped at 10 entries
+Backend: In-memory Python dict (intentional for demo — no database dependency)
 
-1. Open the app
-2. Click **Use Secure Sample** or **Use Vulnerable Sample**
-3. Click **Run Scan**
-4. Review findings, expand each one for a recommended fix
+AI/ML
+None. The ai_simulation.py module generates contextual text from hardcoded templates based on findings — it is not a live model call.
 
----
-
-## Technical Stack
-
-### Frontend
-
-| Tool | Role |
-|------|------|
-| **Alpine.js 3.x** | Reactive UI state — no build step required |
-| **Vanilla JavaScript** | All scan logic, validation, and storage |
-| **CSS Variables** | Full light/dark theming |
-| **Browser LocalStorage** | Persists scan history client-side |
-| **Google Fonts (Inter)** | Typography |
-
-### Backend *(optional — app runs fully without it)*
-
-| Tool | Role |
-|------|------|
-| **FastAPI** | Python REST API framework |
-| **Uvicorn** | ASGI server on port 5000 |
-| **Pydantic v2** | Request schema modeling and validation |
-
-### Storage
-- **Frontend:** `localStorage` under key `doorkeeper_recent_scans`, capped at 10 entries
-- **Backend:** In-memory Python dict (intentional for demo — no database dependency)
-
-### AI/ML
-None. The `ai_simulation.py` module generates contextual text from hardcoded templates based on findings — it is not a live model call.
-
----
-
-## Architecture & Data Flow
-
-### Frontend-only flow *(production)*
-
-```
+Architecture & Data Flow
+Frontend-only flow (production)
 User Input (JSON)
       │
       ▼
@@ -77,21 +51,20 @@ storage.js → ScanStorage.save()
       │
       ▼
 script.js (Alpine.js) → Renders findings to UI
-```
-
-### Backend flow *(optional)*
-
-```
+Backend flow (optional)
 POST /api/scan
       │
       ▼
 RulesEngine.run_all_checks(config)
-  rule_1 │ Password policy      (min length 12, uppercase, numbers, special chars)
-  rule_2 │ Encryption standard  (SSL/TLS1.0/1.1 = CRITICAL, TLS1.2/1.3 = pass)
-  rule_3 │ Open ports           (risky: 21, 23, 53, 135, 139, 445, 1433, 3389, 5432)
-  rule_4 │ Auth method          (MFA/OAuth/SAML = pass, password-only = MEDIUM)
-  rule_5 │ Logging config       (enabled, valid level, audit trail, ≥30 day retention)
-  rule_6 │ Backup settings      (enabled, daily/hourly, encrypted, offsite, ≥30 days)
+  rule_1 │ Password policy       (min length 12, uppercase, numbers, special chars)
+  rule_2 │ Encryption standard   (SSL/TLS1.0/1.1 = CRITICAL, TLS1.2/1.3 = pass)
+  rule_3 │ Open ports            (risky: 21, 23, 53, 135, 139, 445, 1433, 3389, 5432)
+  rule_4 │ Auth method           (MFA/OAuth/SAML = pass, password-only = MEDIUM)
+  rule_5 │ Logging config        (enabled, valid level, audit trail, ≥30 day retention)
+  rule_6 │ Backup settings       (enabled, daily/hourly, encrypted, offsite, ≥30 days)
+  rule_7 │ AI model governance   (version pinning, output logging, human review threshold,
+         │                        bias monitoring, data provenance)
+         │                        → NIST AI RMF: GOVERN 1.1 │ ISO 42001: 6.1.2
       │
       ▼
 ComplianceCalculator → severity-weighted score (0–100)
@@ -102,16 +75,13 @@ ExplanationEngine → loads /fix_library/rule_N_fix.md
       │
       ▼
 Response: { scan_id, findings, compliance_score, summary }
-```
 
-> **Note:** The frontend and backend implement separate but complementary rule sets. The frontend covers network surface (HTTP/HTTPS, ports, headers). The backend covers system internals (auth, encryption, logging, backup). They share the same UI but are independent engines.
+Note: The frontend and backend implement separate but complementary rule sets. The frontend covers network surface (HTTP/HTTPS, ports, headers). The backend covers system internals (auth, encryption, logging, backup, and AI model governance). They share the same UI but are independent engines.
 
----
 
-## Configuration Schema
-
-```json
-{
+Configuration Schema
+Standard config (frontend + backend rules 1–6)
+json{
   "target": "https://example.com",
   "checks": {
     "ports": [80, 443],
@@ -120,6 +90,20 @@ Response: { scan_id, findings, compliance_score, summary }
   },
   "tags": ["production", "webapp"],
   "note": "Optional description"
+}
+AI model governance config (backend rule 7)
+json{
+  "ai_model": {
+    "version_pinned": true,
+    "model_version": "gpt-4-0613",
+    "output_logging": true,
+    "log_retention_days": 90,
+    "human_review_threshold": 0.75,
+    "bias_monitoring": true,
+    "bias_evaluation_frequency": "monthly",
+    "data_provenance": true,
+    "training_dataset_version": "v2024-Q3"
+  }
 }
 ```
 
@@ -131,6 +115,11 @@ Response: { scan_id, findings, compliance_score, summary }
 | `checks.robotsTxt` | `boolean` | No | Check for robots.txt path exposure |
 | `tags` | `string[]` | No | Labels for organizing scans |
 | `note` | `string` | No | Free-text description |
+| `ai_model.version_pinned` | `boolean` | No | Whether model version is locked |
+| `ai_model.output_logging` | `boolean` | No | Whether model outputs are logged |
+| `ai_model.human_review_threshold` | `number` | No | Confidence threshold for human review |
+| `ai_model.bias_monitoring` | `boolean` | No | Whether bias monitoring is active |
+| `ai_model.data_provenance` | `boolean` | No | Whether input data lineage is tracked |
 
 ---
 
@@ -139,7 +128,7 @@ Response: { scan_id, findings, compliance_score, summary }
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/` | Serves `index.html` |
-| `POST` | `/api/scan` | Runs all 6 rules, returns findings + compliance score |
+| `POST` | `/api/scan` | Runs all 7 rules, returns findings + compliance score |
 | `GET` | `/api/reports` | Lists all in-memory scan reports |
 | `GET` | `/api/reports/{scan_id}` | Retrieves one report by ID |
 | `GET` | `/static/*` | Serves frontend assets |
@@ -147,7 +136,6 @@ Response: { scan_id, findings, compliance_score, summary }
 ---
 
 ## File Structure
-
 ```
 door_keeper_frontend/
 ├── index.html          # UI structure and Alpine.js bindings
@@ -159,62 +147,48 @@ door_keeper_frontend/
 
 door_keeper_backend/
 ├── main.py             # FastAPI app and route definitions
-├── rules_engine.py     # 6 security rule implementations
+├── rules_engine.py     # 7 security rule implementations
 ├── compliance.py       # Severity-weighted score calculation
 ├── ai_simulation.py    # Contextual summary generation
 ├── explain.py          # Markdown fix guide loader
 ├── models/
 │   └── schemas.py      # Pydantic models (Finding, ScanRequest, ScanResponse)
 └── fix_library/
-    └── rule_*_fix.md   # Per-rule remediation guides
-```
+    └── rule_*_fix.md   # Per-rule remediation guides (rules 1–7)
 
----
+Key Features
 
-## Key Features
+Drag-and-drop upload — drop a .json file directly onto the upload zone
+Real-time validation — JSON syntax and schema errors shown inline as you type
+Built-in test presets — Secure, Vulnerable, and Robots-exposed sample configs
+Collapsible findings — each finding expands to show a specific recommended fix
+Filter by severity — view All, Critical, Warning, or Info findings
+Scan history — last 10 scans saved locally; re-open or delete any entry
+Light/Dark mode — toggle persisted to localStorage
+Keyboard shortcuts — Ctrl+Enter to run scan, Ctrl+Shift+F to format JSON
+No installation — runs from static files, no build process
+AI governance checks — Rule 7 evaluates AI model configs against NIST AI RMF and ISO 42001
 
-- **Drag-and-drop upload** — drop a `.json` file directly onto the upload zone
-- **Real-time validation** — JSON syntax and schema errors shown inline as you type
-- **Built-in test presets** — Secure, Vulnerable, and Robots-exposed sample configs
-- **Collapsible findings** — each finding expands to show a specific recommended fix
-- **Filter by severity** — view All, Warning, or Info findings
-- **Scan history** — last 10 scans saved locally; re-open or delete any entry
-- **Light/Dark mode** — toggle persisted to localStorage
-- **Keyboard shortcuts** — `Ctrl+Enter` to run scan, `Ctrl+Shift+F` to format JSON
-- **No installation** — runs from static files, no build process
 
----
-
-## Implementation Highlights
-
-**Deterministic scan engine**
+Implementation Highlights
+Deterministic scan engine
 Scan IDs and timestamps are derived from a bitwise rolling hash of the input config string. Identical configs always produce identical results — making the tool reproducible and testable without a database or random state.
-
-**No build toolchain**
-The entire frontend runs from plain `.js` files loaded via `<script>` tags. Alpine.js is pulled from CDN. No webpack, no npm, no compilation — the whole UI is editable and deployable as static files.
-
-**Severity-weighted compliance scoring**
+No build toolchain
+The entire frontend runs from plain .js files loaded via <script> tags. Alpine.js is pulled from CDN. No webpack, no npm, no compilation — the whole UI is editable and deployable as static files.
+Severity-weighted compliance scoring
 Rather than a simple pass/fail percentage, the backend deducts points by severity from a 100-point baseline. A single CRITICAL finding costs 25 points, producing a more meaningful risk score than counting issues equally.
-
-**Markdown-based fix library**
-Each backend rule maps to a `.md` file in `/fix_library/`. Remediation content is fully decoupled from rule logic — fix instructions can be updated without touching the rules engine.
-
-**Zero network dependency for core features**
+Markdown-based fix library
+Each backend rule maps to a .md file in /fix_library/. Remediation content is fully decoupled from rule logic — fix instructions can be updated without touching the rules engine.
+AI model governance (Rule 7)
+Rule 7 checks AI system configurations against five controls drawn from the NIST AI Risk Management Framework (GOVERN 1.1) and ISO/IEC 42001:2023 (6.1.2): model version pinning, output logging, human-in-the-loop thresholds, bias monitoring, and data provenance tracking. Each failed control maps to a specific remediation guide in fix_library/rule_7_fix.md.
+Zero network dependency for core features
 The frontend scan engine, validator, and storage all work completely offline. No API calls are made during a scan. Data never leaves the browser.
 
----
+Governance Framework Mappings
+RuleControlFramework ReferenceRule 7Model version governanceNIST AI RMF: GOVERN 1.1Rule 7Output auditabilityISO 42001: 6.1.2Rule 7Human oversightEU AI Act: Article 14Rule 7Bias and fairness monitoringNIST AI RMF: MANAGE 2.2Rule 7Data lineageISO 42001: 8.4
 
-## Themes
+Themes
+LightDarkBackground#F3F4F6#1C1F23Card#FFFFFF#262A31Accent#2C7DF0#6CA5FFText#1F2933#E7E9EC
 
-| | Light | Dark |
-|--|-------|------|
-| **Background** | `#F3F4F6` | `#1C1F23` |
-| **Card** | `#FFFFFF` | `#262A31` |
-| **Accent** | `#2C7DF0` | `#6CA5FF` |
-| **Text** | `#1F2933` | `#E7E9EC` |
-
----
-
-## License
-
+License
 MIT
