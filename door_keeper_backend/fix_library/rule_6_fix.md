@@ -1,5 +1,3 @@
-### door_keeper_backend/fix_library/rule_6_fix.md
-```markdown
 # Backup and Disaster Recovery Fix
 
 ## Issue
