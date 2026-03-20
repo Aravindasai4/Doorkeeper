@@ -56,7 +56,7 @@ async def root():
     return FileResponse(str(index_path))
 
 
-@app.post("/scan", response_model=ScanResponse)
+@app.post("/api/scan", response_model=ScanResponse)
 async def run_scan(request: ScanRequest):
     """
     Run security/compliance scan on provided configuration
@@ -106,7 +106,7 @@ async def run_scan(request: ScanRequest):
         raise HTTPException(status_code=500, detail=f"Scan failed: {str(e)}")
 
 
-@app.get("/report/{scan_id}")
+@app.get("/api/report/{scan_id}")
 async def get_report(scan_id: str):
     """Retrieve a previously generated scan report"""
     if scan_id not in scan_reports:
@@ -114,7 +114,7 @@ async def get_report(scan_id: str):
     return scan_reports[scan_id]
 
 
-@app.get("/reports")
+@app.get("/api/reports")
 async def list_reports():
     """List all available scan reports"""
     summaries = []
