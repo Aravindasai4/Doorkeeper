@@ -1,6 +1,6 @@
 """
 Rules Engine for DoorKeeper
-Implements 6 security/compliance rule checks
+Implements 7 security/compliance rule checks
 """
 
 from typing import List, Dict, Any
@@ -15,14 +15,15 @@ class RulesEngine:
     def __init__(self):
         self.explanation_engine = ExplanationEngine()
         
-        # Define the 6 rules
+        # Define the 7 rules
         self.rules = {
             "rule_1": self._check_password_policy,
             "rule_2": self._check_encryption_standards,
             "rule_3": self._check_open_ports,
             "rule_4": self._check_authentication_method,
             "rule_5": self._check_logging_configuration,
-            "rule_6": self._check_backup_settings
+            "rule_6": self._check_backup_settings,
+            "rule_7": self._check_ai_model_governance,
         }
     
     def run_all_checks(self, config: Dict[str, Any]) -> List[Finding]:
@@ -273,3 +274,57 @@ class RulesEngine:
             fix_suggestion=self.explanation_engine.get_fix_suggestion(rule_id) if not passed else None,
             affected_items=["backup"]
         )
+
+    def _check_ai_model_governance(self, config: Dict[str, Any]) -> Finding:
+        """Rule 7: Check AI model governance controls"""
+        rule_id = "rule_7"
+        rule_name = "AI Model Governance Controls"
+
+        ai_config = config.get("ai_model", {})
+
+        issues = []
+
+        if not ai_config.get("version_pinned", False):
+            issues.append("Model version is not pinned — unpinned models may change behaviour silently")
+
+        if not ai_config.get("output_logging", False):
+            issues.append("Model outputs are not being logged — required for auditing and debugging")
+
+        if not ai_config.get("human_review_threshold"):
+            issues.append("No human-in-the-loop threshold defined — high-risk outputs may not be reviewed")
+
+        if not ai_config.get("bias_monitoring", False):
+            issues.append("Bias monitoring is not configured — model fairness cannot be verified")
+
+        if not ai_config.get("data_provenance", False):
+            issues.append("Input data provenance is not tracked — data lineage and quality cannot be assured")
+
+        passed = len(issues) == 0
+
+        if len(issues) >= 2:
+            severity = SeverityLevel.HIGH
+        elif len(issues) == 1:
+            severity = SeverityLevel.MEDIUM
+        else:
+            severity = SeverityLevel.INFO
+
+        message = (
+            "AI model governance controls are in place"
+            if passed
+            else f"AI governance issues found: {'; '.join(issues)}"
+        )
+
+        return Finding(
+            rule_id=rule_id,
+            rule_name=rule_name,
+            severity=severity,
+            passed=passed,
+            message=message,
+            fix_suggestion=self.explanation_engine.get_fix_suggestion(rule_id) if not passed else None,
+            affected_items=[
+                "ai_model",
+                "NIST AI RMF: GOVERN 1.1",
+                "ISO 42001: 6.1.2",
+            ]
+        )
+
