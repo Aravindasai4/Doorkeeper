@@ -1,4 +1,3 @@
-
 """
 Rules Engine for DoorKeeper
 Implements 6 security/compliance rule checks
@@ -7,7 +6,6 @@ Implements 6 security/compliance rule checks
 from typing import List, Dict, Any
 from .models.schemas import Finding, SeverityLevel
 from .explain import ExplanationEngine
-
 
 class RulesEngine:
     """
