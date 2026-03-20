@@ -1,5 +1,3 @@
-### door_keeper_backend/fix_library/rule_4_fix.md
-```markdown
 # Authentication Method Security Fix
 
 ## Issue
