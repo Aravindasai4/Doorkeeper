@@ -1,5 +1,3 @@
-### door_keeper_backend/fix_library/rule_2_fix.md
-```markdown
 # Encryption Standards Fix
 
 ## Issue
